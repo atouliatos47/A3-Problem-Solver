@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 // Helper functions (unchanged)
 function eh(s) { if (!s) return ""; return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
@@ -45,16 +45,18 @@ function ParetoChart({ data }) {
   );
 }
 
-// ── Fishbone SVG (unchanged but colors updated) ─────────────────────────
-function Fishbone({ fishbone, title }) {
+// ── Fishbone SVG (colors adapted to theme via props) ────────────────────
+function Fishbone({ fishbone, title, darkMode }) {
   const W = 510, H = 188, spY = H / 2;
   const cats = ["Man", "Machine", "Method", "Material", "Environment", "Measurement"];
   const cols = { Man: "#2ecc71", Machine: "#27ae60", Method: "#229954", Material: "#1e8449", Environment: "#16a085", Measurement: "#e67e22" };
   const pos = [{ x: 145, top: true }, { x: 278, top: true }, { x: 395, top: true }, { x: 145, top: false }, { x: 278, top: false }, { x: 395, top: false }];
   const prob = (title || "Problem").slice(0, 18);
+  const bgColor = darkMode ? "#1a1a1a" : "#f9f9f9";
+  const textColor = darkMode ? "#ccc" : "#333";
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", maxHeight: 170, display: "block" }}>
-      <rect width={W} height={H} fill="#1a1a1a" rx="4" />
+      <rect width={W} height={H} fill={bgColor} rx="4" />
       <line x1="28" y1={spY} x2="425" y2={spY} stroke="#2ecc71" strokeWidth="3" />
       <polygon points={`425,${spY} 495,${spY - 12} 495,${spY + 12}`} fill="#2ecc71" />
       <rect x="497" y={spY - 15} width="60" height="30" rx="3" fill="#2ecc71" />
@@ -74,7 +76,7 @@ function Fishbone({ fishbone, title }) {
               return (
                 <g key={ci}>
                   <line x1={bx} y1={by} x2={sx} y2={sy} stroke={col} strokeWidth="1" opacity=".65" />
-                  <text x={sx - 2} y={sy + (p.top ? -2 : 4)} textAnchor="end" fontSize="6" fill="#ccc">{txt}</text>
+                  <text x={sx - 2} y={sy + (p.top ? -2 : 4)} textAnchor="end" fontSize="6" fill={textColor}>{txt}</text>
                 </g>
               );
             })}
@@ -163,6 +165,7 @@ const EXAMPLES = [
 
 // ── Main App ────────────────────────────────────────────────────────────
 export default function A3Solver() {
+  const [darkMode, setDarkMode] = useState(true); // true = dark, false = light
   const [view, setView] = useState("input");
   const [form, setForm] = useState({
     title: "", area: "", date: new Date().toISOString().slice(0, 10),
@@ -182,6 +185,32 @@ export default function A3Solver() {
   const [toast, setToast] = useState(null);
   const [selectedExample, setSelectedExample] = useState(EXAMPLES[0].name);
   const fileRef = useRef();
+
+  // PWA install state
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [installable, setInstallable] = useState(false);
+
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setInstallable(true);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then((choiceResult) => {
+      if (choiceResult.outcome === 'accepted') {
+        console.log('User accepted the install prompt');
+      }
+      setDeferredPrompt(null);
+      setInstallable(false);
+    });
+  };
 
   const showToast = (msg, type = "ok") => {
     setToast({ msg, type });
@@ -279,51 +308,135 @@ export default function A3Solver() {
     setView("a3");
   };
 
-  // ── STYLES (updated to black, green, gray) ────────────────────────────
+  // ── THEME STYLES ────────────────────────────────────────────
+  const theme = {
+    dark: {
+      appBg: "#000000",
+      appFg: "#f0f0f0",
+      headerBg: "#111111",
+      headerBorder: "#333",
+      cardBg: "#1a1a1a",
+      cardBorder: "#333",
+      cardHeadBg: "#222",
+      cardHeadBorder: "#444",
+      inputBg: "#111",
+      inputBorder: "#333",
+      inputFg: "#f0f0f0",
+      labelFg: "#aaa",
+      dropZoneBg: "#0a0a0a",
+      infoBoxBg: "rgba(46,204,113,.1)",
+      infoBoxBorder: "rgba(46,204,113,.25)",
+      infoBoxFg: "#aaa",
+      toolbarBg: "#1a1a1a",
+      toolbarBorder: "#333",
+      toastBg: "#1a1a1a",
+      toastBorderErr: "#e74c3c",
+      toastBorderOk: "#2ecc71",
+      a3wrapBg: "#333",
+      a3headBg: "#1a1a1a",
+      a3headBorder: "#2ecc71",
+      a3bodyBorder: "#1a1a1a",
+      a3cellBorder: "#ccc",
+      a3textColor: "#333",
+      stripBorder: "#ccc",
+      stripLblFg: "#666",
+      stripValFg: "#111",
+      footerBg: "#f5f5f5",
+      footerBorder: "#1a1a1a",
+      footerFg: "#666",
+    },
+    light: {
+      appBg: "#f5f5f5",
+      appFg: "#222",
+      headerBg: "#ffffff",
+      headerBorder: "#ddd",
+      cardBg: "#ffffff",
+      cardBorder: "#ddd",
+      cardHeadBg: "#f0f0f0",
+      cardHeadBorder: "#ccc",
+      inputBg: "#ffffff",
+      inputBorder: "#ccc",
+      inputFg: "#222",
+      labelFg: "#555",
+      dropZoneBg: "#fafafa",
+      infoBoxBg: "rgba(46,204,113,.05)",
+      infoBoxBorder: "rgba(46,204,113,.2)",
+      infoBoxFg: "#555",
+      toolbarBg: "#ffffff",
+      toolbarBorder: "#ddd",
+      toastBg: "#ffffff",
+      toastBorderErr: "#e74c3c",
+      toastBorderOk: "#2ecc71",
+      a3wrapBg: "#ccc",
+      a3headBg: "#2ecc71",
+      a3headBorder: "#229954",
+      a3bodyBorder: "#2ecc71",
+      a3cellBorder: "#ddd",
+      a3textColor: "#222",
+      stripBorder: "#ddd",
+      stripLblFg: "#777",
+      stripValFg: "#222",
+      footerBg: "#f0f0f0",
+      footerBorder: "#2ecc71",
+      footerFg: "#555",
+    }
+  };
+
+  const t = darkMode ? theme.dark : theme.light;
+
   const s = {
-    app: { fontFamily: "'Segoe UI',system-ui,sans-serif", background: "#000000", color: "#f0f0f0", minHeight: "100vh" },
-    header: { background: "#111111", padding: "14px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #333" },
+    app: { fontFamily: "'Segoe UI',system-ui,sans-serif", background: t.appBg, color: t.appFg, minHeight: "100vh" },
+    header: { background: t.headerBg, padding: "14px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid " + t.headerBorder },
     logoRow: { display: "flex", alignItems: "center", gap: 10 },
     logoIcon: { width: 38, height: 38, background: "#2ecc71", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, color: "#000" },
-    h1: { fontSize: 19, fontWeight: 700, margin: 0, color: "#fff" },
-    sub: { fontSize: 11, color: "#aaa", margin: 0 },
+    h1: { fontSize: 19, fontWeight: 700, margin: 0, color: darkMode ? "#fff" : "#222" },
+    sub: { fontSize: 11, color: t.labelFg, margin: 0 },
     btn: (variant = "secondary", sm = false) => ({
-      padding: sm ? "6px 13px" : "9px 18px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: sm ? 12 : 13, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "inherit",
-      background: variant === "primary" ? "#2ecc71" : variant === "success" ? "#27ae60" : "#333",
-      color: variant === "secondary" ? "#f0f0f0" : "#000", border: variant === "secondary" ? "1px solid #555" : "none"
+      padding: sm ? "6px 13px" : "9px 18px",
+      borderRadius: 8,
+      cursor: "pointer",
+      fontSize: sm ? 12 : 13,
+      fontWeight: 600,
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 6,
+      fontFamily: "inherit",
+      background: variant === "primary" ? "#2ecc71" : variant === "success" ? "#27ae60" : darkMode ? "#333" : "#e0e0e0",
+      color: variant === "secondary" ? (darkMode ? "#f0f0f0" : "#222") : "#000",
+      border: variant === "secondary" ? (darkMode ? "1px solid #555" : "1px solid #ccc") : "none"
     }),
     wrap: { maxWidth: 840, margin: "0 auto", padding: 22 },
-    card: { background: "#1a1a1a", border: "1px solid #333", borderRadius: 10, marginBottom: 16, overflow: "hidden" },
-    cardHead: { padding: "11px 17px", background: "#222", display: "flex", alignItems: "center", gap: 9, borderBottom: "1px solid #444", fontWeight: 600, fontSize: 13, color: "#fff" },
+    card: { background: t.cardBg, border: "1px solid " + t.cardBorder, borderRadius: 10, marginBottom: 16, overflow: "hidden" },
+    cardHead: { padding: "11px 17px", background: t.cardHeadBg, display: "flex", alignItems: "center", gap: 9, borderBottom: "1px solid " + t.cardHeadBorder, fontWeight: 600, fontSize: 13, color: darkMode ? "#fff" : "#222" },
     badge: () => ({ background: "#2ecc71", color: "#000", borderRadius: 5, padding: "2px 8px", fontSize: 11, fontWeight: 700 }),
     cardBody: { padding: 17 },
     grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 13 },
     grid3: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 13 },
     field: { display: "flex", flexDirection: "column", gap: 5 },
-    label: { fontSize: 11, fontWeight: 600, color: "#aaa", textTransform: "uppercase", letterSpacing: .4 },
-    input: { background: "#111", border: "1px solid #333", borderRadius: 7, padding: "8px 11px", color: "#f0f0f0", fontSize: 13, fontFamily: "inherit", width: "100%" },
-    textarea: { background: "#111", border: "1px solid #333", borderRadius: 7, padding: "8px 11px", color: "#f0f0f0", fontSize: 13, fontFamily: "inherit", width: "100%", resize: "vertical", minHeight: 70 },
-    select: { background: "#111", border: "1px solid #333", borderRadius: 7, padding: "8px 11px", color: "#f0f0f0", fontSize: 13, fontFamily: "inherit", width: "100%" },
-    dropZone: { border: "2px dashed #444", borderRadius: 8, padding: 18, textAlign: "center", cursor: "pointer", marginBottom: 10, background: "#0a0a0a" },
-    infoBox: { background: "rgba(46,204,113,.1)", border: "1px solid rgba(46,204,113,.25)", borderRadius: 8, padding: "11px 14px", marginBottom: 15, fontSize: 12, color: "#aaa" },
+    label: { fontSize: 11, fontWeight: 600, color: t.labelFg, textTransform: "uppercase", letterSpacing: .4 },
+    input: { background: t.inputBg, border: "1px solid " + t.inputBorder, borderRadius: 7, padding: "8px 11px", color: t.inputFg, fontSize: 13, fontFamily: "inherit", width: "100%" },
+    textarea: { background: t.inputBg, border: "1px solid " + t.inputBorder, borderRadius: 7, padding: "8px 11px", color: t.inputFg, fontSize: 13, fontFamily: "inherit", width: "100%", resize: "vertical", minHeight: 70 },
+    select: { background: t.inputBg, border: "1px solid " + t.inputBorder, borderRadius: 7, padding: "8px 11px", color: t.inputFg, fontSize: 13, fontFamily: "inherit", width: "100%" },
+    dropZone: { border: "2px dashed #444", borderRadius: 8, padding: 18, textAlign: "center", cursor: "pointer", marginBottom: 10, background: t.dropZoneBg },
+    infoBox: { background: t.infoBoxBg, border: "1px solid " + t.infoBoxBorder, borderRadius: 8, padding: "11px 14px", marginBottom: 15, fontSize: 12, color: t.infoBoxFg },
     analyseZone: { textAlign: "center", padding: "26px 20px" },
-    exampleBar: { background: "#111", border: "1px solid #333", borderRadius: 8, padding: "12px 16px", marginBottom: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" },
+    exampleBar: { background: t.inputBg, border: "1px solid " + t.inputBorder, borderRadius: 8, padding: "12px 16px", marginBottom: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" },
     // Toolbar
-    toolbar: { background: "#1a1a1a", borderBottom: "1px solid #333", padding: "9px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 },
+    toolbar: { background: t.toolbarBg, borderBottom: "1px solid " + t.toolbarBorder, padding: "9px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 },
     // A3 paper (these styles are for the white A3 preview; they remain mostly unchanged to keep the printed look)
-    a3wrap: { padding: 22, background: "#333", minHeight: "calc(100vh - 52px)", overflowX: "auto" },
+    a3wrap: { padding: 22, background: t.a3wrapBg, minHeight: "calc(100vh - 52px)", overflowX: "auto" },
     a3: { width: 1160, background: "#fff", color: "#111", margin: "0 auto", boxShadow: "0 8px 40px rgba(0,0,0,.5)", fontFamily: "'Segoe UI',Arial,sans-serif", fontSize: 10.5, display: "grid", gridTemplateRows: "auto auto 1fr auto" },
-    a3head: { background: "#1a1a1a", color: "#fff", padding: "9px 15px", display: "grid", gridTemplateColumns: "auto 1fr auto", alignItems: "center", gap: 15, borderBottom: "3px solid #2ecc71" },
-    a3body: { display: "grid", gridTemplateColumns: "1fr 1fr", borderBottom: "2px solid #1a1a1a" },
-    a3col: (right = false) => ({ display: "flex", flexDirection: "column", borderRight: right ? "none" : "2px solid #1a1a1a" }),
-    a3cell: (grow = false) => ({ borderBottom: grow ? "none" : "1px solid #ccc", padding: "6px 10px", flex: grow ? 1 : undefined }),
-    cellTitle: { fontSize: 8.5, fontWeight: 800, color: "#1a1a1a", textTransform: "uppercase", letterSpacing: .7, marginBottom: 4, paddingBottom: 3, borderBottom: "1px solid #ccc", display: "flex", alignItems: "center", gap: 4 },
-    cn: { background: "#1a1a1a", color: "#fff", borderRadius: 3, width: 13, height: 13, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 7.5, flexShrink: 0 },
-    a3text: { fontSize: 10, lineHeight: 1.5, color: "#333" },
-    strip: { display: "grid", gridTemplateColumns: "repeat(5,1fr)", borderBottom: "2px solid #1a1a1a" },
-    stripCell: { padding: "4px 9px", borderRight: "1px solid #ccc" },
-    stripLbl: { fontSize: 7.5, fontWeight: 700, color: "#666", textTransform: "uppercase", letterSpacing: .4 },
-    stripVal: { fontSize: 10.5, fontWeight: 600, color: "#111", marginTop: 1 },
+    a3head: { background: t.a3headBg, color: "#fff", padding: "9px 15px", display: "grid", gridTemplateColumns: "auto 1fr auto", alignItems: "center", gap: 15, borderBottom: "3px solid " + t.a3headBorder },
+    a3body: { display: "grid", gridTemplateColumns: "1fr 1fr", borderBottom: "2px solid " + t.a3bodyBorder },
+    a3col: (right = false) => ({ display: "flex", flexDirection: "column", borderRight: right ? "none" : "2px solid " + t.a3bodyBorder }),
+    a3cell: (grow = false) => ({ borderBottom: grow ? "none" : "1px solid " + t.a3cellBorder, padding: "6px 10px", flex: grow ? 1 : undefined }),
+    cellTitle: { fontSize: 8.5, fontWeight: 800, color: darkMode ? "#1a1a1a" : "#2ecc71", textTransform: "uppercase", letterSpacing: .7, marginBottom: 4, paddingBottom: 3, borderBottom: "1px solid " + t.a3cellBorder, display: "flex", alignItems: "center", gap: 4 },
+    cn: { background: darkMode ? "#1a1a1a" : "#2ecc71", color: "#fff", borderRadius: 3, width: 13, height: 13, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 7.5, flexShrink: 0 },
+    a3text: { fontSize: 10, lineHeight: 1.5, color: t.a3textColor },
+    strip: { display: "grid", gridTemplateColumns: "repeat(5,1fr)", borderBottom: "2px solid " + t.a3bodyBorder },
+    stripCell: { padding: "4px 9px", borderRight: "1px solid " + t.stripBorder },
+    stripLbl: { fontSize: 7.5, fontWeight: 700, color: t.stripLblFg, textTransform: "uppercase", letterSpacing: .4 },
+    stripVal: { fontSize: 10.5, fontWeight: 600, color: t.stripValFg, marginTop: 1 },
   };
 
   // ── INPUT VIEW ───────────────────────────────────────────
@@ -333,16 +446,26 @@ export default function A3Solver() {
       <div style={s.header}>
         <div style={s.logoRow}>
           <div style={s.logoIcon}>📋</div>
-          <div><div style={s.h1}>A3 Problem Solver</div><div style={s.sub}>Clamason Industries · Green & Black</div></div>
+          <div><div style={s.h1}>A3 Problem Solver</div><div style={s.sub}>Clamason Industries · {darkMode ? "Dark" : "Light"} Mode</div></div>
         </div>
-        <button style={s.btn("secondary", true)} onClick={() => { setResult(null); setCsvData([]); }}>↩ Reset</button>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button style={s.btn("secondary", true)} onClick={() => setDarkMode(!darkMode)}>
+            {darkMode ? "☀️ Light" : "🌙 Dark"}
+          </button>
+          {installable && (
+            <button style={s.btn("primary", true)} onClick={handleInstallClick}>
+              📲 Install App
+            </button>
+          )}
+          <button style={s.btn("secondary", true)} onClick={() => { setResult(null); setCsvData([]); }}>↩ Reset</button>
+        </div>
       </div>
       <div style={s.wrap}>
         <div style={s.infoBox}>💡 Fill in all sections below, or load an example to get started.</div>
 
         {/* Example selector */}
         <div style={s.exampleBar}>
-          <span style={{ fontWeight: 600, color: "#aaa" }}>Load example:</span>
+          <span style={{ fontWeight: 600, color: t.labelFg }}>Load example:</span>
           <select style={{ ...s.select, width: 250 }} value={selectedExample} onChange={e => setSelectedExample(e.target.value)}>
             {EXAMPLES.map(ex => <option key={ex.name} value={ex.name}>{ex.name}</option>)}
           </select>
@@ -386,24 +509,24 @@ export default function A3Solver() {
 
         {/* Card 3 - Event Data */}
         <div style={s.card}>
-          <div style={s.cardHead}><span style={s.badge()}>3</span> Failure / Event Data <span style={{ fontSize: 11, color: "#aaa", fontWeight: 400, marginLeft: 4 }}>— for Pareto chart (optional)</span></div>
+          <div style={s.cardHead}><span style={s.badge()}>3</span> Failure / Event Data <span style={{ fontSize: 11, color: t.labelFg, fontWeight: 400, marginLeft: 4 }}>— for Pareto chart (optional)</span></div>
           <div style={s.cardBody}>
-            <p style={{ fontSize: 12, color: "#aaa", marginBottom: 12 }}>CSV format: <code style={{ background: "#111", padding: "2px 6px", borderRadius: 4, fontSize: 11 }}>category,frequency,duration_mins</code></p>
+            <p style={{ fontSize: 12, color: t.labelFg, marginBottom: 12 }}>CSV format: <code style={{ background: t.inputBg, padding: "2px 6px", borderRadius: 4, fontSize: 11 }}>category,frequency,duration_mins</code></p>
             <div style={s.dropZone}
               onClick={() => fileRef.current.click()}
               onDragOver={e => e.preventDefault()}
               onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) parseCSVFile(f); }}>
               <div style={{ fontSize: 26 }}>📂</div>
               <strong>Click to import CSV</strong>
-              <div style={{ fontSize: 12, color: "#aaa", marginTop: 4 }}>or drag and drop here</div>
+              <div style={{ fontSize: 12, color: t.labelFg, marginTop: 4 }}>or drag and drop here</div>
               <input ref={fileRef} type="file" accept=".csv" style={{ display: "none" }} onChange={e => { const f = e.target.files[0]; if (f) parseCSVFile(f); }} />
             </div>
             {csvData.length > 0 && (
-              <div style={{ background: "#111", border: "1px solid #333", borderRadius: 7, padding: 11, marginBottom: 12, fontSize: 11 }}>
-                <strong style={{ color: "#aaa" }}>Preview ({csvData.length} rows)</strong>
+              <div style={{ background: t.inputBg, border: "1px solid " + t.inputBorder, borderRadius: 7, padding: 11, marginBottom: 12, fontSize: 11 }}>
+                <strong style={{ color: t.labelFg }}>Preview ({csvData.length} rows)</strong>
                 <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 6 }}>
-                  <thead><tr>{["Category", "Frequency", "Duration"].map(h => <th key={h} style={{ background: "#1a1a1a", padding: "4px 8px", textAlign: "left", color: "#aaa", fontSize: 10 }}>{h}</th>)}</tr></thead>
-                  <tbody>{csvData.slice(0, 5).map((r, i) => <tr key={i}><td style={{ padding: "3px 8px", borderTop: "1px solid #333" }}>{r.category}</td><td style={{ padding: "3px 8px", borderTop: "1px solid #333" }}>{r.frequency}</td><td style={{ padding: "3px 8px", borderTop: "1px solid #333" }}>{r.duration}</td></tr>)}</tbody>
+                  <thead><tr>{["Category", "Frequency", "Duration"].map(h => <th key={h} style={{ background: t.cardHeadBg, padding: "4px 8px", textAlign: "left", color: t.labelFg, fontSize: 10 }}>{h}</th>)}</tr></thead>
+                  <tbody>{csvData.slice(0, 5).map((r, i) => <tr key={i}><td style={{ padding: "3px 8px", borderTop: "1px solid " + t.inputBorder }}>{r.category}</td><td style={{ padding: "3px 8px", borderTop: "1px solid " + t.inputBorder }}>{r.frequency}</td><td style={{ padding: "3px 8px", borderTop: "1px solid " + t.inputBorder }}>{r.duration}</td></tr>)}</tbody>
                 </table>
               </div>
             )}
@@ -457,7 +580,7 @@ export default function A3Solver() {
         <div style={s.card}>
           <div style={s.cardHead}><span style={s.badge()}>6</span> Fishbone Diagram (Ishikawa)</div>
           <div style={s.cardBody}>
-            <p style={{ fontSize: 12, color: "#aaa", marginBottom: 12 }}>Enter causes for each category, one per line.</p>
+            <p style={{ fontSize: 12, color: t.labelFg, marginBottom: 12 }}>Enter causes for each category, one per line.</p>
             <div style={s.grid2}>
               {["Man", "Machine", "Method", "Material", "Environment", "Measurement"].map(cat => (
                 <div style={s.field} key={cat}>
@@ -504,14 +627,14 @@ export default function A3Solver() {
 
         <div style={s.analyseZone}>
           <button style={{ ...s.btn("success"), fontSize: 15, padding: "14px 36px" }} onClick={buildA3}>📄 Generate A3</button>
-          <div style={{ fontSize: 12, color: "#aaa", marginTop: 8 }}>Review your A3 document (printable)</div>
+          <div style={{ fontSize: 12, color: t.labelFg, marginTop: 8 }}>Review your A3 document (printable)</div>
         </div>
       </div>
-      {toast && <div style={{ position: "fixed", bottom: 20, right: 20, background: "#1a1a1a", border: `1px solid ${toast.type === "err" ? "#e74c3c" : "#2ecc71"}`, borderLeft: `4px solid ${toast.type === "err" ? "#e74c3c" : "#2ecc71"}`, borderRadius: 10, padding: "12px 16px", fontSize: 13, zIndex: 9999, boxShadow: "0 8px 30px rgba(0,0,0,.8)" }}>{toast.msg}</div>}
+      {toast && <div style={{ position: "fixed", bottom: 20, right: 20, background: t.toastBg, border: `1px solid ${toast.type === "err" ? t.toastBorderErr : t.toastBorderOk}`, borderLeft: `4px solid ${toast.type === "err" ? t.toastBorderErr : t.toastBorderOk}`, borderRadius: 10, padding: "12px 16px", fontSize: 13, zIndex: 9999, boxShadow: "0 8px 30px rgba(0,0,0,.2)" }}>{toast.msg}</div>}
     </div>
   );
 
-  // ── A3 VIEW (unchanged content, but with updated header/footer colors) ──
+  // ── A3 VIEW ──────────────────────────────────────────────
   const r = result;
   const d = r.formData;
   const eventData = r.eventData;
@@ -525,9 +648,9 @@ export default function A3Solver() {
     ? { background: "#dcfce7", color: "#15803d", borderRadius: 3, padding: "1px 4px", fontSize: 7.5, fontWeight: 700 }
     : { background: "#dbeafe", color: "#1d4ed8", borderRadius: 3, padding: "1px 4px", fontSize: 7.5, fontWeight: 700 };
 
-  const thStyle = { background: "#1a1a1a", color: "#fff", padding: "3px 7px", textAlign: "left", fontSize: 8.5, fontWeight: 600 };
-  const tdStyle = { padding: "3px 7px", borderBottom: "1px solid #ccc", fontSize: 9.5 };
-  const tdAlt = { ...tdStyle, background: "#f0f0f0" };
+  const thStyle = { background: darkMode ? "#1a1a1a" : "#2ecc71", color: "#fff", padding: "3px 7px", textAlign: "left", fontSize: 8.5, fontWeight: 600 };
+  const tdStyle = { padding: "3px 7px", borderBottom: "1px solid " + t.a3cellBorder, fontSize: 9.5 };
+  const tdAlt = { ...tdStyle, background: darkMode ? "#f0f0f0" : "#f9f9f9" };
 
   return (
     <div style={s.app}>
@@ -536,9 +659,12 @@ export default function A3Solver() {
       <div style={s.toolbar} className="no-print">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button style={s.btn("secondary", true)} onClick={() => setView("input")}>← Edit</button>
-          <span style={{ fontSize: 12, color: "#aaa" }}>A3 ready — review then print</span>
+          <span style={{ fontSize: 12, color: t.labelFg }}>A3 ready — review then print</span>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          <button style={s.btn("secondary", true)} onClick={() => setDarkMode(!darkMode)}>
+            {darkMode ? "☀️ Light" : "🌙 Dark"}
+          </button>
           <button style={s.btn("primary", true)} onClick={() => window.print()}>🖨️ Print A3</button>
         </div>
       </div>
@@ -587,7 +713,7 @@ export default function A3Solver() {
               </div>
               <div style={s.a3cell(true)}>
                 <div style={s.cellTitle}><span style={s.cn}>4</span> Fishbone Diagram (Ishikawa)</div>
-                <Fishbone fishbone={r.fishbone} title={d.title} />
+                <Fishbone fishbone={r.fishbone} title={d.title} darkMode={darkMode} />
               </div>
             </div>
             {/* RIGHT */}
@@ -637,14 +763,14 @@ export default function A3Solver() {
             </div>
           </div>
           {/* Footer */}
-          <div style={{ background: "#f5f5f5", borderTop: "2px solid #1a1a1a", padding: "4px 15px", display: "flex", justifyContent: "space-between", fontSize: 8.5, color: "#666" }}>
+          <div style={{ background: t.footerBg, borderTop: "2px solid " + t.footerBorder, padding: "4px 15px", display: "flex", justifyContent: "space-between", fontSize: 8.5, color: t.footerFg }}>
             <span>A3 Problem Solver · Clamason Industries</span>
             <span>Generated: {new Date().toLocaleString()}</span>
             <span>Confidential — Internal Use Only</span>
           </div>
         </div>
       </div>
-      {toast && <div style={{ position: "fixed", bottom: 20, right: 20, background: "#1a1a1a", border: `4px solid ${toast.type === "err" ? "#e74c3c" : "#2ecc71"}`, borderRadius: 10, padding: "12px 16px", fontSize: 13, zIndex: 9999 }}>{toast.msg}</div>}
+      {toast && <div style={{ position: "fixed", bottom: 20, right: 20, background: t.toastBg, border: `4px solid ${toast.type === "err" ? t.toastBorderErr : t.toastBorderOk}`, borderRadius: 10, padding: "12px 16px", fontSize: 13, zIndex: 9999 }}>{toast.msg}</div>}
     </div>
   );
 }
